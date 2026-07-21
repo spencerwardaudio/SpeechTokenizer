@@ -346,6 +346,8 @@ class SpeechTokenizerTrainer(nn.Module):
         for epoch in range(self.epochs):
             if self.is_main:
                 print(f'Epoch:{epoch} start...')
+            
+            epoch_validated = False  # Track if we've validated this epoch
                     
             for batch in self.dl:
                 
@@ -433,6 +435,7 @@ class SpeechTokenizerTrainer(nn.Module):
                     self.save(model_path, total_mel_error / num)                        
                     self.print(f'{steps}: saving model to {str(self.results_folder)}')
                     self.generator.train()
+                    epoch_validated = True  # Mark that we validated this epoch
                     
                 # Update lr    
                 self.steps += 1
@@ -446,7 +449,44 @@ class SpeechTokenizerTrainer(nn.Module):
                 else:
                     self.scheduler_d.step() 
                     self.scheduler_g.step() 
-                    lr = self.scheduler_g.get_last_lr()[0]    
+                    lr = self.scheduler_g.get_last_lr()[0]
+            
+            # Epoch-based validation (every 5 epochs)
+            if self.is_main and (epoch + 1) % 5 == 0 and not epoch_validated:
+                self.print(f'Epoch {epoch + 1} validation start ...')
+                total_mel_error = 0.0
+                total_distill_loss = 0.0
+                num = 0
+                self.generator.eval()
+                with torch.inference_mode():
+                    for i, batch in tqdm(enumerate(self.valid_dl)):                       
+                        x, semantic_feature = batch
+                        x = x.unsqueeze(1)
+                        x_hat, loss_q, feature = self.generator(x)
+                        mel_error = mel_loss(x, x_hat, **self.mel_loss_kwargs_list[0]).item()
+                        total_mel_error += mel_error
+                        loss_distill = self.distill_loss(feature, semantic_feature).item()
+                        total_distill_loss += loss_distill                            
+                        num += x.size(0)
+                        if i < self.showpiece_num:
+                            if not self.plot_gt_once:
+                                self.log({f'groundtruth/x_{i}': x[0].cpu().detach()}, type='audio', sample_rate=self.sample_rate, step=steps)
+                                x_spec = mel_spectrogram(x.squeeze(1), **self.mel_kwargs)
+                                self.log({f'groundtruth/x_spec_{i}': plot_spectrogram(x_spec[0].cpu().numpy())}, type='figure', step=steps)
+                                
+                            self.log({f'generate/x_hat_{i}': x_hat[0].cpu().detach()}, type='audio', sample_rate=self.sample_rate, step=steps)
+                            x_hat_spec = mel_spectrogram(x_hat.squeeze(1), **self.mel_kwargs)
+                            self.log({f'generate/x_hat_spec_{i}': plot_spectrogram(x_hat_spec[0].cpu().numpy())}, type='figure', step=steps)
+                    if not self.plot_gt_once:
+                        self.plot_gt_once = True
+                    self.print(f'Epoch {epoch + 1} - dev mel error: {total_mel_error / num:0.3f}\tdev distill loss: {total_distill_loss / num:0.3f}')
+                    self.log({'dev/mel error': total_mel_error / num, 'dev/distillation loss': total_distill_loss / num}, step=steps)
+                
+                # save model after epoch-based validation
+                model_path = str(self.results_folder / f'SpeechTokenizerTrainer_epoch{epoch+1:03d}')
+                self.save(model_path, total_mel_error / num)                        
+                self.print(f'Epoch {epoch + 1}: saving model to {str(self.results_folder)}')
+                self.generator.train()
             
         self.print('training complete')
         
