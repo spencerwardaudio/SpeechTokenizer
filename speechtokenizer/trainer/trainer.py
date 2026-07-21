@@ -19,6 +19,15 @@ import time
 from tqdm import tqdm
 from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs, DataLoaderConfiguration
 
+# W&B logging
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    wandb = None
+
+
 
 # helpers
 
@@ -98,6 +107,21 @@ class SpeechTokenizerTrainer(nn.Module):
         
         if self.is_main:
             self.writer = tensorboard.SummaryWriter(os.path.join(results_folder, 'logs'))
+            
+            # Initialize W&B
+            if WANDB_AVAILABLE:
+                wandb_project = os.environ.get("WANDB_PROJECT", "speechtokenizer-training")
+                wandb_name = os.environ.get("WANDB_NAME") or os.environ.get("WANDB_RUN_NAME", "spt-run")
+                self.wandb_run = wandb.init(
+                    project=wandb_project,
+                    name=wandb_name,
+                    config=cfg,
+                    resume='allow',
+                )
+                print(f"✓ W&B initialized: project={wandb_project}, name={wandb_name}")
+            else:
+                self.wandb_run = None
+                print("⚠ W&B not available, skipping wandb logging")
 
         self.generator = generator
         self.discriminators = discriminators
@@ -298,6 +322,10 @@ class SpeechTokenizerTrainer(nn.Module):
         else:
             for k, v in values.items():
                 self.writer.add_scalar(k, v, global_step=step)
+            
+            # Also log scalars to W&B
+            if WANDB_AVAILABLE and hasattr(self, 'wandb_run') and self.wandb_run is not None:
+                wandb.log(values, step=step)
 
     def train(self):
         
@@ -421,6 +449,11 @@ class SpeechTokenizerTrainer(nn.Module):
                     lr = self.scheduler_g.get_last_lr()[0]    
             
         self.print('training complete')
+        
+        # Finish W&B run
+        if self.is_main and WANDB_AVAILABLE and hasattr(self, 'wandb_run') and self.wandb_run is not None:
+            wandb.finish()
+            print("✓ W&B run finished")
         
     def continue_train(self):
         self.load()
