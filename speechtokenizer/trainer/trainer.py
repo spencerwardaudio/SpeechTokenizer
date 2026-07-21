@@ -336,7 +336,7 @@ class SpeechTokenizerTrainer(nn.Module):
         steps = int(self.steps.item())               
         if steps < self.num_warmup_steps:
             lr = self.warmup(steps)
-            for param_group in self.optim.param_groups:
+            for param_group in self.optim_g.param_groups:
                 param_group['lr'] = lr
         else:
             self.scheduler_d.step()
