@@ -51,21 +51,47 @@ class audioDataset(Dataset):
     
     def __getitem__(self, index):
         file = self.file_list[index].strip()
-        audio_file, feature_file = file.split('\t')
+        
+        # Check if file has features (speech with TAB) or just audio (FSD50K)
+        if '\t' in file:
+            audio_file, feature_file = file.split('\t')
+            feature = torch.from_numpy(np.load(feature_file))
+        else:
+            audio_file = file
+            feature = None  # Will create dummy features when distill_loss_lambda=0
+        
         audio, sr = torchaudio.load(audio_file)
-        feature = torch.from_numpy(np.load(feature_file))
         audio = audio.mean(axis=0)
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
+        
         if audio.size(-1) > self.segment_size:
             if self.valid:
-                return audio[:self.segment_size], feature[:self.segment_size // self.downsample_rate]
-            max_audio_start = audio.size(-1) - self.segment_size
-            audio_start = random.randint(0, max_audio_start)
-            audio = audio[audio_start:audio_start+self.segment_size]
-            feature_start = min(int(audio_start / self.downsample_rate), feature.size(0) - self.segment_size // self.downsample_rate)
-            feature = feature[feature_start:feature_start + self.segment_size // self.downsample_rate, :]
+                audio_segment = audio[:self.segment_size]
+                if feature is not None:
+                    feature_segment = feature[:self.segment_size // self.downsample_rate]
+                else:
+                    feature_segment = torch.zeros((self.segment_size // self.downsample_rate, 768))
+            else:
+                max_audio_start = audio.size(-1) - self.segment_size
+                audio_start = random.randint(0, max_audio_start)
+                audio_segment = audio[audio_start:audio_start+self.segment_size]
+                
+                if feature is not None:
+                    feature_start = min(int(audio_start / self.downsample_rate), 
+                                      feature.size(0) - self.segment_size // self.downsample_rate)
+                    feature_segment = feature[feature_start:feature_start + self.segment_size // self.downsample_rate, :]
+                else:
+                    feature_segment = torch.zeros((self.segment_size // self.downsample_rate, 768))
         else:
             if not self.valid:
-                audio = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(-1)), 'constant')
-        return audio, feature
+                audio_segment = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(-1)), 'constant')
+            else:
+                audio_segment = audio
+            
+            if feature is None:
+                feature_segment = torch.zeros((audio_segment.size(-1) // self.downsample_rate, 768))
+            else:
+                feature_segment = feature
+        
+        return audio_segment, feature_segment

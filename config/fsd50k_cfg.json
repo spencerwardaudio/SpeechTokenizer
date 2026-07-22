@@ -24,7 +24,7 @@
     "recon_loss_lambda": 500,
     "commitment_loss_lambda": 10,
 
-    "distill_loss_lambda": 120,
+    "distill_loss_lambda": 0,
     "distill_type": "d_axis",
 
     "semantic_model_path": "facebook/hubert-base-ls960",
