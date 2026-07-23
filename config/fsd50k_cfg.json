@@ -45,10 +45,10 @@
     "seed": 42,
     "segment_size": 48000,
     "wd": 0,
-    "num_workers": 4,
+    "num_workers": 8,
     "log_steps": 100,
     "stdout_steps": 10,
-    "save_model_steps": 5000,
+    "save_model_steps": 5050,
     "num_ckpt_keep": 3,
     "showpiece_num": 8,
     "drop_last": true

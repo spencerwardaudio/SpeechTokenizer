@@ -372,7 +372,11 @@ class SpeechTokenizerTrainer(nn.Module):
                 loss_mel = sum(map(lambda mel_k:mel_k[0] * mel_loss(x, x_hat, **mel_k[1]), zip(self.mel_loss_lambdas, self.mel_loss_kwargs_list)))
                 loss_feature = sum(map(lambda x:feature_loss(*x[2:]), discriminator_outputs))
                 loss_adversarial = sum(map(lambda x:adversarial_loss(x[1]), discriminator_outputs))
-                loss_distill = self.distill_loss(feature, semantic_feature)
+                # Skip distillation loss if semantic_feature is None (no teacher features available)
+                if semantic_feature is not None:
+                    loss_distill = self.distill_loss(feature, semantic_feature)
+                else:
+                    loss_distill = torch.tensor(0.0, device=x.device)
                 loss_generator_all = loss_feature + loss_adversarial + loss_mel + loss_q * self.commitment_loss_lambda + loss_recon * self.recon_loss_lambda + self.distill_loss_lambda * loss_distill
                 self.accelerator.backward(loss_generator_all)
                 # if exists(self.max_grad_norm):
@@ -412,7 +416,11 @@ class SpeechTokenizerTrainer(nn.Module):
                             x_hat, loss_q, feature = self.generator(x)
                             mel_error = mel_loss(x, x_hat, **self.mel_loss_kwargs_list[0]).item()
                             total_mel_error += mel_error
-                            loss_distill = self.distill_loss(feature, semantic_feature).item()
+                            # Skip distillation loss if semantic_feature is None (no teacher features available)
+                            if semantic_feature is not None:
+                                loss_distill = self.distill_loss(feature, semantic_feature).item()
+                            else:
+                                loss_distill = 0.0
                             total_distill_loss += loss_distill                            
                             num += x.size(0)
                             if i < self.showpiece_num:

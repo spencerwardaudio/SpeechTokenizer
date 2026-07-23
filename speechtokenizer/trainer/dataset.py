@@ -46,7 +46,8 @@ class audioDataset(Dataset):
         self.downsample_rate = downsample_rate
         
     def __len__(self):
-        return len(self.file_list)
+        # Limit to 1010 steps × 8 batch = 8,080 samples/epoch (fast training mode)
+        return min(len(self.file_list), 8080)
     
     
     def __getitem__(self, index):
@@ -71,7 +72,7 @@ class audioDataset(Dataset):
                 if feature is not None:
                     feature_segment = feature[:self.segment_size // self.downsample_rate]
                 else:
-                    feature_segment = torch.zeros((self.segment_size // self.downsample_rate, 768))
+                    feature_segment = None  # Skip semantic features when not needed (distill_loss_lambda=0)
             else:
                 max_audio_start = audio.size(-1) - self.segment_size
                 audio_start = random.randint(0, max_audio_start)
@@ -82,7 +83,7 @@ class audioDataset(Dataset):
                                       feature.size(0) - self.segment_size // self.downsample_rate)
                     feature_segment = feature[feature_start:feature_start + self.segment_size // self.downsample_rate, :]
                 else:
-                    feature_segment = torch.zeros((self.segment_size // self.downsample_rate, 768))
+                    feature_segment = None  # Skip semantic features when not needed (distill_loss_lambda=0)
         else:
             if not self.valid:
                 audio_segment = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(-1)), 'constant')
@@ -90,7 +91,7 @@ class audioDataset(Dataset):
                 audio_segment = audio
             
             if feature is None:
-                feature_segment = torch.zeros((audio_segment.size(-1) // self.downsample_rate, 768))
+                feature_segment = None  # Skip semantic features when not needed (distill_loss_lambda=0)
             else:
                 feature_segment = feature
         
