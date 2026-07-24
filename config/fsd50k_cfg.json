@@ -34,7 +34,7 @@
     "valid_files": "data/fsd50k_val_files.txt",
     "results_folder": "results/speechtokenizer_fsd50k",
     "sample_rate": 16000,
-    "batch_size": 8,
+    "batch_size": 16,
     "epochs": 50,
     "learning_rate": 5e-5,
     "intial_learning_rate": 5e-5,
@@ -45,11 +45,11 @@
     "seed": 42,
     "segment_size": 48000,
     "wd": 0,
-    "num_workers": 8,
+    "num_workers": 16,
     "log_steps": 100,
     "stdout_steps": 10,
     "save_model_steps": 5050,
     "num_ckpt_keep": 3,
-    "showpiece_num": 8,
+    "showpiece_num": 4,
     "drop_last": true
 }
