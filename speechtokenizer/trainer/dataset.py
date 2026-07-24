@@ -21,6 +21,8 @@ def collate_fn(data):
     for datum in zip(*data):
         if isinstance(datum[0], torch.Tensor):
             output = pad_sequence(datum, batch_first=True)
+        elif datum[0] is None:
+            output = None  # feature_segment is None when distill_loss_lambda=0 (no semantic teacher)
         else:
             output = torch.tensor(list(datum))
         outputs.append(output)
