@@ -34,7 +34,7 @@
     "valid_files": "data/fsd50k_val_files.txt",
     "results_folder": "results/speechtokenizer_fsd50k",
     "sample_rate": 16000,
-    "batch_size": 16,
+    "batch_size": 12,
     "epochs": 50,
     "learning_rate": 5e-5,
     "intial_learning_rate": 5e-5,
