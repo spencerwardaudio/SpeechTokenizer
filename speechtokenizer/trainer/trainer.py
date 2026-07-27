@@ -119,6 +119,9 @@ class SpeechTokenizerTrainer(nn.Module):
                     resume='allow',
                 )
                 print(f"✓ W&B initialized: project={wandb_project}, name={wandb_name}")
+                wandb.define_metric("epoch")
+                wandb.define_metric("train/*", step_metric="epoch")
+                wandb.define_metric("dev/*", step_metric="epoch")
             else:
                 self.wandb_run = None
                 print("⚠ W&B not available, skipping wandb logging")
@@ -396,7 +399,8 @@ class SpeechTokenizerTrainer(nn.Module):
                 if self.is_main and not (steps % self.log_steps):
                     self.log({"train/discriminators loss": loss_disc_all.item(), "train/generator loss": loss_generator_all.item(), "train/feature loss": loss_feature.item(),
                                           "train/adversarial loss": loss_adversarial.item(), "train/quantizer loss": loss_q.item(), "train/mel loss": loss_mel.item(),
-                                          "train/mel error": mel_error, "train/distillation loss": loss_distill.item(), "train/learning_rate": lr}, step=steps)
+                                          "train/mel error": mel_error, "train/distillation loss": loss_distill.item(), "train/learning_rate": lr,
+                                          "epoch": epoch}, step=steps)
                     
                 self.accelerator.wait_for_everyone()
                 
@@ -435,7 +439,7 @@ class SpeechTokenizerTrainer(nn.Module):
                         if not self.plot_gt_once:
                             self.plot_gt_once = True
                         self.print(f'{steps}: dev mel error: {total_mel_error / num:0.3f}\tdev distill loss: {total_distill_loss / num:0.3f}')
-                        self.log({'dev/mel error': total_mel_error / num, 'dev/distillation loss': total_distill_loss / num}, step=steps)
+                        self.log({'dev/mel error': total_mel_error / num, 'dev/distillation loss': total_distill_loss / num, 'epoch': epoch}, step=steps)
                             
                     
                     # save model
@@ -473,7 +477,7 @@ class SpeechTokenizerTrainer(nn.Module):
                         x_hat, loss_q, feature = self.generator(x)
                         mel_error = mel_loss(x, x_hat, **self.mel_loss_kwargs_list[0]).item()
                         total_mel_error += mel_error
-                        loss_distill = self.distill_loss(feature, semantic_feature).item()
+                        loss_distill = self.distill_loss(feature, semantic_feature).item() if semantic_feature is not None else 0.0
                         total_distill_loss += loss_distill                            
                         num += x.size(0)
                         if i < self.showpiece_num:
@@ -488,7 +492,7 @@ class SpeechTokenizerTrainer(nn.Module):
                     if not self.plot_gt_once:
                         self.plot_gt_once = True
                     self.print(f'Epoch {epoch + 1} - dev mel error: {total_mel_error / num:0.3f}\tdev distill loss: {total_distill_loss / num:0.3f}')
-                    self.log({'dev/mel error': total_mel_error / num, 'dev/distillation loss': total_distill_loss / num}, step=steps)
+                    self.log({'dev/mel error': total_mel_error / num, 'dev/distillation loss': total_distill_loss / num, 'epoch': epoch + 1}, step=steps)
                 
                 # save model after epoch-based validation
                 model_path = str(self.results_folder / f'SpeechTokenizerTrainer_epoch{epoch+1:03d}')
