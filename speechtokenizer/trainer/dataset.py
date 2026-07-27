@@ -12,7 +12,7 @@ _PROJ_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(_PROJ_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJ_ROOT))
 
-from datasets.audio_preprocessing import normalize_rms_snr
+from dataloader_aug.audio_preprocessing import normalize_rms_snr
 
 def collate_fn(data):
     # return pad_sequence(data, batch_first=True)
