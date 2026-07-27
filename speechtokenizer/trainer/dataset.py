@@ -48,8 +48,9 @@ class audioDataset(Dataset):
         self.downsample_rate = downsample_rate
         
     def __len__(self):
-        # Limited training: 1000 steps × 12 batch = 12,000 samples/epoch (37% of dataset)
-        return min(len(self.file_list), 12000)
+        import os
+        n = int(os.getenv("TRAIN_N_SAMPLES", 12000))
+        return min(len(self.file_list), n)
     
     
     def __getitem__(self, index):
