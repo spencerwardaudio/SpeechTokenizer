@@ -49,7 +49,8 @@ class audioDataset(Dataset):
         
     def __len__(self):
         import os
-        n = int(os.getenv("TRAIN_N_SAMPLES", 12000))
+        env_key = "VAL_N_SAMPLES" if self.valid else "TRAIN_N_SAMPLES"
+        n = int(os.getenv(env_key, 12000))
         return min(len(self.file_list), n)
     
     
