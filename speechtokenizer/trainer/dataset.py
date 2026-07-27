@@ -4,6 +4,15 @@ import torchaudio
 import random
 import torch
 import numpy as np
+import sys
+from pathlib import Path
+
+# Add project root to path for shared utilities
+_PROJ_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(_PROJ_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJ_ROOT))
+
+from datasets.audio_preprocessing import normalize_rms_snr
 
 def collate_fn(data):
     # return pad_sequence(data, batch_first=True)
@@ -69,6 +78,14 @@ class audioDataset(Dataset):
         audio = audio.mean(axis=0)
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
+        
+        # Apply RMS/SNR normalization (preserves amplitude relationships)
+        audio = normalize_rms_snr(
+            audio,
+            target_snr_db=40.0,
+            train_mode=(not self.valid),
+            snr_variation_db=5.0
+        )
         
         if audio.size(-1) > self.segment_size:
             if self.valid:
