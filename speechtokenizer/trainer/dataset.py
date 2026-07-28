@@ -13,6 +13,14 @@ if str(_PROJ_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJ_ROOT))
 
 from dataloader_aug.audio_preprocessing import normalize_rms_snr
+from dataloader_aug.dataset_paths import get_dataset_config
+
+# Validate dataset paths on module load
+_dataset_config = get_dataset_config()
+assert _dataset_config.speechtok_train.exists(), \
+    f"❌ SpeechTokenizer training filelist missing: {_dataset_config.speechtok_train}"
+assert _dataset_config.speechtok_val.exists(), \
+    f"❌ SpeechTokenizer validation filelist missing: {_dataset_config.speechtok_val}"
 
 def collate_fn(data):
     # return pad_sequence(data, batch_first=True)
@@ -84,7 +92,9 @@ class audioDataset(Dataset):
             audio,
             target_snr_db=40.0,
             train_mode=(not self.valid),
-            snr_variation_db=5.0
+            snr_variation_db=5.0,
+            audio_path=audio_file,
+            source_identifier="SpeechTokenizer/audioDataset"
         )
         
         if audio.size(-1) > self.segment_size:
