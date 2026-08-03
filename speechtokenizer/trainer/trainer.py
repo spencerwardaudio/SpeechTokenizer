@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from .dataset import get_dataloader, audioDataset
+from .dataset import get_dataloader, audioDataset, validate_training_filelists
 from .optimizer import get_optimizer
 from torch.utils import tensorboard
 from .loss import *
@@ -164,6 +164,7 @@ class SpeechTokenizerTrainer(nn.Module):
         train_files = cfg.get("train_files")
         batch_size = cfg.get("batch_size")
         self.batch_size = batch_size
+        validate_training_filelists(train_files, cfg.get("valid_files"))
         with open(train_files, 'r') as f:
             train_file_list = f.readlines()
         valid_files = cfg.get("valid_files")

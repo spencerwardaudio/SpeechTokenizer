@@ -13,14 +13,34 @@ if str(_PROJ_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJ_ROOT))
 
 from dataloader_aug.audio_preprocessing import normalize_rms_snr
-from dataloader_aug.dataset_paths import get_dataset_config
 
-# Validate dataset paths on module load
-_dataset_config = get_dataset_config()
-assert _dataset_config.speechtok_train.exists(), \
-    f"❌ SpeechTokenizer training filelist missing: {_dataset_config.speechtok_train}"
-assert _dataset_config.speechtok_val.exists(), \
-    f"❌ SpeechTokenizer validation filelist missing: {_dataset_config.speechtok_val}"
+
+def validate_training_filelists(train_files, valid_files):
+    """Validate SpeechTokenizer train/val filelists at training time.
+
+    This intentionally runs during trainer initialization instead of import
+    so environment setup checks can import the package before dataset splits
+    are generated.
+    """
+    train_path = Path(train_files)
+    valid_path = Path(valid_files)
+
+    missing = [str(p) for p in (train_path, valid_path) if not p.exists()]
+    if missing:
+        missing_paths = "\n  - ".join([""] + missing)
+        raise FileNotFoundError(
+            "SpeechTokenizer filelist(s) missing:" + missing_paths +
+            "\nGenerate splits first (e.g. run generate_splits.sh)."
+        )
+
+    for path in (train_path, valid_path):
+        with open(path, 'r') as f:
+            has_entries = any(line.strip() for line in f)
+        if not has_entries:
+            raise ValueError(
+                f"SpeechTokenizer filelist is empty: {path}. "
+                "Generate splits first (e.g. run generate_splits.sh)."
+            )
 
 def collate_fn(data):
     # return pad_sequence(data, batch_first=True)
