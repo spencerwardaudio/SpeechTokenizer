@@ -107,16 +107,15 @@ class audioDataset(Dataset):
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
         
-        # COMMENTED OUT: RMS/SNR normalization produces excessive console spam
-        # and SpeechTokenizer trains successfully without it. Re-enable if needed for stability.
-        # audio = normalize_rms_snr(
-        #     audio,
-        #     target_snr_db=40.0,
-        #     train_mode=(not self.valid),
-        #     snr_variation_db=5.0,
-        #     audio_path=audio_file,
-        #     source_identifier="SpeechTokenizer/audioDataset"
-        # )
+        # Unified RMS/SNR normalization — consistent across all 5 codecs
+        audio = normalize_rms_snr(
+            audio.unsqueeze(0),
+            target_snr_db=40.0,
+            train_mode=(not self.valid),
+            snr_variation_db=5.0,
+            audio_path=audio_file,
+            source_identifier="SpeechTokenizer/audioDataset"
+        ).squeeze(0)
         
         if audio.size(-1) > self.segment_size:
             if self.valid:
